@@ -25,4 +25,9 @@ setup(
         'mock',
         'pytest',
     ]},
+    entry_points={
+        'celery.commands': [
+            'zabbix = celery_zabbix.receiver:Command',
+        ]
+    }
 )

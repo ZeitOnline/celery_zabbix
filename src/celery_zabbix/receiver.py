@@ -79,3 +79,54 @@ class Receiver(object):
                 '*': self.state.event,
             })
             recv.capture(*args, **kw)
+
+
+class Command(celery.bin.base.Command):
+
+    should_stop = False
+
+    def dump_stats(self):
+        while not self.should_stop:
+            data = scales.getStats()
+            log.debug(data)
+            log.debug(
+                'Dump thread going to sleep for %s seconds',
+                self.dump_interval)
+            time.sleep(self.dump_interval)
+
+    def run(self, **kw):
+        receiver = Receiver(self.app)
+
+        try_interval = 1
+        while not self.should_stop:
+            try:
+                try_interval *= 2
+                receiver()
+                try_interval = 1
+            except (KeyboardInterrupt, SystemExit):
+                log.info('Exiting')
+                receiver.should_stop = True
+                self.should_stop = True
+                thread.interrupt_main()
+                break
+            except Exception as e:
+                log.error(
+                    'Failed to capture events: "%s", '
+                    'trying again in %s seconds.',
+                    e, try_interval, exc_info=True)
+                time.sleep(try_interval)
+
+    def prepare_args(self, *args, **kw):
+        options, args = super(Command, self).prepare_args(*args, **kw)
+        self.app.log.setup(
+            logging.DEBUG if options.get('verbose') else logging.INFO)
+        self.dump_interval = options.pop('dump_interval')
+        threading.Thread(target=self.dump_stats).start()
+        return options, args
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--dump-interval',
+            help='Send metrics to zabbix every x seconds', type=int, default=1)
+        parser.add_argument(
+            '--verbose', help='Enable debug logging', action='store_true')
