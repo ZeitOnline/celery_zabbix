@@ -6,7 +6,7 @@ Sends task execution metrics to Zabbix: how many tasks were started and have
 completed successfully or with failure, and how many tasks are still in the
 queues (supported only for broker redis).
 
-Inspired by `https://gitlab.com/kalibrr/celery-prometheus`_.
+Inspired by https://gitlab.com/kalibrr/celery-prometheus
 
 
 Usage
