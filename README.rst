@@ -31,7 +31,12 @@ so you'll probably want to process them as delta on the Zabbix server.
 
 These are the median values.
 
+If you pass ``--queuelength-interval=x`` then every x seconds the queue lengths will be checked (only works with redis), and the following items will also be sent:
+
 * celery.queue.NAME.length
+
+These are gauge values, i.e. they contain the length as it was retrieved each
+time, so they can go up and down.
 
 
 Run tests

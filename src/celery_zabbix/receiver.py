@@ -3,6 +3,8 @@ from cStringIO import StringIO
 from functools import wraps
 from greplin import scales
 import celery.bin.base
+import collections
+import json
 import logging
 import thread
 import threading
@@ -22,6 +24,8 @@ stats = scales.collection(
     scales.PmfStat('queuetime'),
     scales.PmfStat('runtime'),
 )
+stats_queue = type('Stats:queues', (object,), {})()
+scales._Stats.initChild(stats_queue, 'queues', '', stats)
 
 
 def task_handler(fn):
@@ -100,6 +104,8 @@ class Command(celery.bin.base.Command):
                 'runtime', {}).get('median', -1)
             metrics['celery.task.queuetime'] = data.get(
                 'queuetime', {}).get('median', -1)
+            for key, value in data['queues'].items():
+                metrics['celery.queue.' + key] = value
             self._send_to_zabbix(metrics)
             log.debug(
                 'Dump thread going to sleep for %s seconds',
@@ -116,6 +122,38 @@ class Command(celery.bin.base.Command):
                    for key, value in metrics.items()]
         log.debug(metrics)
         zbxsend.send_to_zabbix(metrics, self.zabbix_server)
+
+    def check_queue_lengths(self):
+        while not self.should_stop:
+            lengths = collections.Counter()
+
+            pipe = self.app.broker_connection().channel().client.pipeline(
+                transaction=False)
+            for queue in self.app.conf['task_queues']:
+                if not hasattr(stats_queue, queue.name):
+                    setattr(
+                        type(stats_queue), queue.name, scales.Stat(queue.name))
+                # Not claimed by any worker yet
+                pipe.llen(queue.name)
+            # Claimed by worker but not acked/processed yet
+            pipe.hvals('unacked')
+
+            result = pipe.execute()
+
+            unacked = result.pop()
+            for task in unacked:
+                task = json.loads(task.decode('utf-8'))
+                lengths[task[-1]] += 1
+            unacked = [[-1] for v in unacked]
+            unacked = len([x for x in unacked])
+
+            for llen, queue in zip(result, self.app.conf['task_queues']):
+                lengths[queue.name] += llen
+
+            for queue, length in lengths.items():
+                setattr(stats_queue, queue, length)
+
+            time.sleep(self.queuelength_interval)
 
     def run(self, **kw):
         receiver = Receiver(self.app)
@@ -147,6 +185,11 @@ class Command(celery.bin.base.Command):
         self._configure_zabbix(options)
         self.dump_interval = options.pop('dump_interval')
         threading.Thread(target=self.dump_stats).start()
+
+        self.queuelength_interval = options.pop('queuelength_interval')
+        if self.queuelength_interval:
+            threading.Thread(target=self.check_queue_lengths).start()
+
         return options, args
 
     def _configure_zabbix(self, options):
@@ -177,3 +220,8 @@ class Command(celery.bin.base.Command):
             '--dump-interval',
             help='Send metrics to zabbix every x seconds',
             type=int, default=60)
+
+        parser.add_argument(
+            '--queuelength-interval',
+            help='Check queue lengths every x seconds (0=disabled)',
+            type=int, default=0)
