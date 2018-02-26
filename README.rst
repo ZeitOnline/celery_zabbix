@@ -12,16 +12,25 @@ Inspired by `https://gitlab.com/kalibrr/celery-prometheus`_.
 Usage
 =====
 
-Run ``bin/celery zabbix --nodename myhost.example.com --zabbix-server zabbix.example.com``
+Run ``bin/celery zabbix --zabbix-nodename myhost.example.com --zabbix-server zabbix.example.com``.
 
-The following items will be sent:
+Alternatively you can pass ``--zabix-agent-config=/etc/zabbix/zabbix_agentd.conf``, then the values for server+nodename will be read from there.
+
+The following items will be sent every 60 seconds (pass ``--dump-interval=x`` to configure):
 
 * celery.task.started
 * celery.task.succeeded
 * celery.task.failed
 * celery.task.retried
+
+These are counted from the time the monitoring process started,
+so you'll probably want to process them as delta on the Zabbix server.
+
 * celery.task.queuetime (only if ``task_send_sent_event`` is enabled)
 * celery.task.runtime
+
+These are the median values.
+
 * celery.queue.NAME.length
 
 

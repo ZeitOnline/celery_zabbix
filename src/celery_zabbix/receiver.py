@@ -1,3 +1,5 @@
+from ConfigParser import ConfigParser
+from cStringIO import StringIO
 from functools import wraps
 from greplin import scales
 import celery.bin.base
@@ -5,6 +7,7 @@ import logging
 import thread
 import threading
 import time
+import zbxsend
 
 
 log = logging.getLogger(__name__)
@@ -87,12 +90,32 @@ class Command(celery.bin.base.Command):
 
     def dump_stats(self):
         while not self.should_stop:
-            data = scales.getStats()
+            data = scales.getStats()['celery']
             log.debug(data)
+            metrics = {
+                'celery.task.' + x: data.get(x, 0)
+                for x in ['started', 'succeeded', 'failed', 'retried']
+            }
+            metrics['celery.task.runtime'] = data.get(
+                'runtime', {}).get('median', -1)
+            metrics['celery.task.queuetime'] = data.get(
+                'queuetime', {}).get('median', -1)
+            self._send_to_zabbix(metrics)
             log.debug(
                 'Dump thread going to sleep for %s seconds',
                 self.dump_interval)
             time.sleep(self.dump_interval)
+
+    def _send_to_zabbix(self, metrics):
+        if not (self.zabbix_server and self.zabbix_nodename):
+            return
+        # Work around bug in zbxsend, they keep the fraction which zabbix
+        # then rejects.
+        now = int(time.time())
+        metrics = [zbxsend.Metric(self.zabbix_nodename, key, value, now)
+                   for key, value in metrics.items()]
+        log.debug(metrics)
+        zbxsend.send_to_zabbix(metrics, self.zabbix_server)
 
     def run(self, **kw):
         receiver = Receiver(self.app)
@@ -120,13 +143,37 @@ class Command(celery.bin.base.Command):
         options, args = super(Command, self).prepare_args(*args, **kw)
         self.app.log.setup(
             logging.DEBUG if options.get('verbose') else logging.INFO)
+
+        self._configure_zabbix(options)
         self.dump_interval = options.pop('dump_interval')
         threading.Thread(target=self.dump_stats).start()
         return options, args
 
+    def _configure_zabbix(self, options):
+        agent_config = options.get('zabbix_agent_config')
+        if agent_config:
+            text = open(agent_config).read()
+            text = '[general]\n' + text
+            config = ConfigParser()
+            config.readfp(StringIO(text))
+            self.zabbix_server_name = config.get('general', 'Server')
+            self.zabbix_nodename = config.get('general', 'Hostname')
+        else:
+            self.zabbix_server = options.pop('zabbix_server', None)
+            self.zabbix_nodename = options.pop('zabbix_nodename', None)
+
     def add_arguments(self, parser):
         parser.add_argument(
-            '--dump-interval',
-            help='Send metrics to zabbix every x seconds', type=int, default=1)
-        parser.add_argument(
             '--verbose', help='Enable debug logging', action='store_true')
+
+        parser.add_argument('--zabbix-server', help='Zabbix server name')
+        parser.add_argument(
+            '--zabbix-nodename', help='Report to zabbix as this hostname')
+        parser.add_argument(
+            '--zabbix-agent-config', help='Path to zabbix_agentd.conf, '
+            'to read zabbix server+port and hostname from.')
+
+        parser.add_argument(
+            '--dump-interval',
+            help='Send metrics to zabbix every x seconds',
+            type=int, default=60)
