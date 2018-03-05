@@ -50,7 +50,7 @@ time, so they can go up and down.
 
 * celery.discover.queues
 
-This is an auto-discovery item, together with the `Zabbix Template`_ this will create an item for each queue.
+This is an auto-discovery item, together with the `Zabbix Template`_ this will create an item and trigger for each queue. On your host, create macros of the form ``{$WARN_QUEUE_LENGTH:myqueuename}`` to determine the trigger threshold.
 
 
 Run tests

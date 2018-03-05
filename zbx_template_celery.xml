@@ -361,7 +361,18 @@
                             <application_prototypes/>
                         </item_prototype>
                     </item_prototypes>
-                    <trigger_prototypes/>
+                    <trigger_prototypes>
+                        <trigger_prototype>
+                            <expression>{Template App Celery:celery.queue[{#QUEUENAME}].max(#5)}&gt;{$WARN_QUEUE_LENGTH:&quot;{#QUEUENAME}&quot;}</expression>
+                            <name>Queue {#QUEUENAME} too long</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>2</priority>
+                            <description/>
+                            <type>0</type>
+                            <dependencies/>
+                        </trigger_prototype>
+                    </trigger_prototypes>
                     <graph_prototypes/>
                     <host_prototypes/>
                 </discovery_rule>
