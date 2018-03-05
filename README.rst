@@ -4,7 +4,7 @@ celery_zabbix
 
 Sends task execution metrics to Zabbix: how many tasks were started and have
 completed successfully or with failure, and how many tasks are still in the
-queues (supported only for broker redis).
+queues (supported only for broker redis). Tested against Zabbix-3.0.
 
 Inspired by https://gitlab.com/kalibrr/celery-prometheus
 
@@ -16,6 +16,14 @@ Run ``bin/celery zabbix --zabbix-nodename myhost.example.com --zabbix-server zab
 
 Alternatively you can pass ``--zabix-agent-config=/etc/zabbix/zabbix_agentd.conf``, then the values for server+nodename will be read from there.
 
+Import the corresponding `Zabbix Template`_ to set up the matching items.
+
+.. _`Zabbix Template`: https://github.com/ZeitOnline/celery_zabbix/blob/master/zbx_template_celery.xml
+
+
+Items
+=====
+
 The following items will be sent every 60 seconds (pass ``--dump-interval=x`` to configure):
 
 * celery.task.started
@@ -24,12 +32,12 @@ The following items will be sent every 60 seconds (pass ``--dump-interval=x`` to
 * celery.task.retried
 
 These are counted from the time the monitoring process started,
-so you'll probably want to process them as delta on the Zabbix server.
+so you'll need to process them as delta on the Zabbix server.
 
 * celery.task.queuetime (only if ``task_send_sent_event`` is enabled)
 * celery.task.runtime
 
-These are the median values.
+These are the median values and use the item type "Numeric (float)".
 
 If you pass ``--queuelength-interval=x`` then every x seconds the queue lengths will be checked (only works with redis), and the following items will also be sent:
 
