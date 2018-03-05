@@ -104,8 +104,16 @@ class Command(celery.bin.base.Command):
                 'runtime', {}).get('median', -1)
             metrics['celery.task.queuetime'] = data.get(
                 'queuetime', {}).get('median', -1)
+            discovery = []
             for key, value in data['queues'].items():
-                metrics['celery.queue.' + key] = value
+                metrics['celery.queue[%s]' % key] = value
+                discovery.append({'{#QUEUENAME}': key})
+            # See <https://www.zabbix.com/documentation/3.0/manual/discovery
+            #      /low_level_discovery#creating_custom_lld_rules>
+            # and <https://github.com/jbfavre/python-protobix/blob/1.0.1
+            #      /protobix/datacontainer.py#L53>
+            metrics['celery.discover.queues'] = json.dumps(
+                {'data': discovery})
             self._send_to_zabbix(metrics)
             log.debug(
                 'Dump thread going to sleep for %s seconds',

@@ -12,11 +12,9 @@ Inspired by https://gitlab.com/kalibrr/celery-prometheus
 Usage
 =====
 
-Run ``bin/celery zabbix --zabbix-nodename myhost.example.com --zabbix-server zabbix.example.com``.
-
-Alternatively you can pass ``--zabix-agent-config=/etc/zabbix/zabbix_agentd.conf``, then the values for server+nodename will be read from there.
-
-Import the corresponding `Zabbix Template`_ to set up the matching items.
+* Run ``bin/celery zabbix --zabbix-nodename myhost.example.com --zabbix-server zabbix.example.com``.
+  (Alternatively you can pass ``--zabix-agent-config=/etc/zabbix/zabbix_agentd.conf``, then the values for server+nodename will be read from there.)
+* Import the corresponding `Zabbix Template`_ to set up the matching items.
 
 .. _`Zabbix Template`: https://github.com/ZeitOnline/celery_zabbix/blob/master/zbx_template_celery.xml
 
@@ -39,12 +37,20 @@ so you'll need to process them as delta on the Zabbix server.
 
 These are the median values and use the item type "Numeric (float)".
 
-If you pass ``--queuelength-interval=x`` then every x seconds the queue lengths will be checked (only works with redis), and the following items will also be sent:
 
-* celery.queue.NAME.length
+Queue lengths
+=============
+
+If you pass ``--queuelength-interval=x`` then every x seconds the queue lengths will be checked (NOTE: this only works with redis as the broker), and the following items will also be sent:
+
+* celery.queue[myqueuename]
 
 These are gauge values, i.e. they contain the length as it was retrieved each
 time, so they can go up and down.
+
+* celery.discover.queues
+
+This is an auto-discovery item, together with the `Zabbix Template`_ this will create an item for each queue.
 
 
 Run tests
