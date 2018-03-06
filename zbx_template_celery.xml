@@ -377,9 +377,26 @@
                     <host_prototypes/>
                 </discovery_rule>
             </discovery_rules>
-            <macros/>
+            <macros>
+                <macro>
+                    <macro>{$WARN_TASKS_FAILED}</macro>
+                    <value>1</value>
+                </macro>
+            </macros>
             <templates/>
             <screens/>
         </template>
     </templates>
+    <triggers>
+        <trigger>
+            <expression>{Template App Celery:celery.task.failed.max(#5)}&gt;{$WARN_TASKS_FAILED}</expression>
+            <name>Celery tasks failed: {ITEM.LASTVALUE1}</name>
+            <url/>
+            <status>0</status>
+            <priority>3</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+    </triggers>
 </zabbix_export>

@@ -25,7 +25,7 @@ Items
 The following items will be sent every 60 seconds (pass ``--dump-interval=x`` to configure):
 
 * celery.task.started
-* celery.task.succeeded
+* celery.task.succeeded (with trigger > ``{$WARN_TASKS_FAILED}``)
 * celery.task.failed
 * celery.task.retried
 
