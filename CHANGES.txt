@@ -4,7 +4,7 @@ celery_zabbix changes
 1.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix typo in agent config parsing
 
 
 1.0.0 (2018-03-06)

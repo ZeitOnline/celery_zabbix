@@ -207,7 +207,7 @@ class Command(celery.bin.base.Command):
             text = '[general]\n' + text
             config = ConfigParser()
             config.readfp(StringIO(text))
-            self.zabbix_server_name = config.get('general', 'Server')
+            self.zabbix_server = config.get('general', 'Server')
             self.zabbix_nodename = config.get('general', 'Hostname')
         else:
             self.zabbix_server = options.pop('zabbix_server', None)
