@@ -56,21 +56,21 @@ class Receiver(object):
     def on_task_succeeded(self, event, task):
         log.debug('Succeeded %s', task)
         stats.succeeded += 1
-        if task is not None:
+        if task is not None and task.runtime is not None:
             stats.runtime = task.runtime
 
     @task_handler
     def on_task_failed(self, event, task):
         log.debug('Failed %s', task)
         stats.failed += 1
-        if task is not None:
+        if task is not None and task.runtime is not None:
             stats.runtime = task.runtime
 
     @task_handler
     def on_task_retried(self, event, task):
         log.debug('Retried %s', task)
         stats.retried += 1
-        if task is not None:
+        if task is not None and task.runtime is not None:
             stats.runtime = task.runtime
 
     def __call__(self, *args, **kw):
