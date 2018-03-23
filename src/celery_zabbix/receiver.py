@@ -94,31 +94,36 @@ class Command(celery.bin.base.Command):
 
     def dump_stats(self):
         while not self.should_stop:
-            data = scales.getStats()['celery']
-            log.debug(data)
-            metrics = {
-                'celery.task.' + x: data.get(x, 0)
-                for x in ['started', 'succeeded', 'failed', 'retried']
-            }
-            metrics['celery.task.runtime'] = data.get(
-                'runtime', {}).get('median', -1)
-            metrics['celery.task.queuetime'] = data.get(
-                'queuetime', {}).get('median', -1)
-            discovery = []
-            for key, value in data['queues'].items():
-                metrics['celery.queue[%s]' % key] = value
-                discovery.append({'{#QUEUENAME}': key})
-            # See <https://www.zabbix.com/documentation/3.0/manual/discovery
-            #      /low_level_discovery#creating_custom_lld_rules>
-            # and <https://github.com/jbfavre/python-protobix/blob/1.0.1
-            #      /protobix/datacontainer.py#L53>
-            metrics['celery.discover.queues'] = json.dumps(
-                {'data': discovery})
-            self._send_to_zabbix(metrics)
-            log.debug(
-                'Dump thread going to sleep for %s seconds',
-                self.dump_interval)
-            time.sleep(self.dump_interval)
+            try:
+                data = scales.getStats()['celery']
+                log.debug(data)
+                metrics = {
+                    'celery.task.' + x: data.get(x, 0)
+                    for x in ['started', 'succeeded', 'failed', 'retried']
+                }
+                metrics['celery.task.runtime'] = data.get(
+                    'runtime', {}).get('median', -1)
+                metrics['celery.task.queuetime'] = data.get(
+                    'queuetime', {}).get('median', -1)
+                discovery = []
+                for key, value in data['queues'].items():
+                    metrics['celery.queue[%s]' % key] = value
+                    discovery.append({'{#QUEUENAME}': key})
+                # See <https://www.zabbix.com/documentation/3.0/manual/
+                #   /discovery/low_level_discovery#creating_custom_lld_rules>
+                # and <https://github.com/jbfavre/python-protobix/blob/1.0.1
+                #   /protobix/datacontainer.py#L53>
+                metrics['celery.discover.queues'] = json.dumps(
+                    {'data': discovery})
+                self._send_to_zabbix(metrics)
+                log.debug(
+                    'Dump thread going to sleep for %s seconds',
+                    self.dump_interval)
+                time.sleep(self.dump_interval)
+            except Exception:
+                log.error(
+                    'Uncaught exception, preventing thread from crashing.',
+                    exc_info=True)
 
     def _send_to_zabbix(self, metrics):
         if not (self.zabbix_server and self.zabbix_nodename):
@@ -133,35 +138,40 @@ class Command(celery.bin.base.Command):
 
     def check_queue_lengths(self):
         while not self.should_stop:
-            lengths = collections.Counter()
+            try:
+                lengths = collections.Counter()
 
-            pipe = self.app.broker_connection().channel().client.pipeline(
-                transaction=False)
-            for queue in self.app.conf['task_queues']:
-                if not hasattr(stats_queue, queue.name):
-                    setattr(
-                        type(stats_queue), queue.name, scales.Stat(queue.name))
-                # Not claimed by any worker yet
-                pipe.llen(queue.name)
-            # Claimed by worker but not acked/processed yet
-            pipe.hvals('unacked')
+                pipe = self.app.broker_connection().channel().client.pipeline(
+                    transaction=False)
+                for queue in self.app.conf['task_queues']:
+                    if not hasattr(stats_queue, queue.name):
+                        setattr(type(stats_queue), queue.name,
+                                scales.Stat(queue.name))
+                    # Not claimed by any worker yet
+                    pipe.llen(queue.name)
+                # Claimed by worker but not acked/processed yet
+                pipe.hvals('unacked')
 
-            result = pipe.execute()
+                result = pipe.execute()
 
-            unacked = result.pop()
-            for task in unacked:
-                task = json.loads(task.decode('utf-8'))
-                lengths[task[-1]] += 1
-            unacked = [[-1] for v in unacked]
-            unacked = len([x for x in unacked])
+                unacked = result.pop()
+                for task in unacked:
+                    task = json.loads(task.decode('utf-8'))
+                    lengths[task[-1]] += 1
+                unacked = [[-1] for v in unacked]
+                unacked = len([x for x in unacked])
 
-            for llen, queue in zip(result, self.app.conf['task_queues']):
-                lengths[queue.name] += llen
+                for llen, queue in zip(result, self.app.conf['task_queues']):
+                    lengths[queue.name] += llen
 
-            for queue, length in lengths.items():
-                setattr(stats_queue, queue, length)
+                for queue, length in lengths.items():
+                    setattr(stats_queue, queue, length)
 
-            time.sleep(self.queuelength_interval)
+                time.sleep(self.queuelength_interval)
+            except Exception:
+                log.error(
+                    'Uncaught exception, preventing thread from crashing.',
+                    exc_info=True)
 
     def run(self, **kw):
         receiver = Receiver(self.app)
