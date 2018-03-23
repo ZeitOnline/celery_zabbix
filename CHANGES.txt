@@ -4,6 +4,8 @@ celery_zabbix changes
 1.0.3 (unreleased)
 ------------------
 
+- Close redis connection we use for queue length checking after use
+
 - Catch exceptions in the dump_stats and check_queue_length threads
 
 

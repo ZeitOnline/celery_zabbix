@@ -141,18 +141,19 @@ class Command(celery.bin.base.Command):
             try:
                 lengths = collections.Counter()
 
-                pipe = self.app.broker_connection().channel().client.pipeline(
-                    transaction=False)
-                for queue in self.app.conf['task_queues']:
-                    if not hasattr(stats_queue, queue.name):
-                        setattr(type(stats_queue), queue.name,
-                                scales.Stat(queue.name))
-                    # Not claimed by any worker yet
-                    pipe.llen(queue.name)
-                # Claimed by worker but not acked/processed yet
-                pipe.hvals('unacked')
+                with self.app.connection() as connection:
+                    pipe = connection.channel().client.pipeline(
+                        transaction=False)
+                    for queue in self.app.conf['task_queues']:
+                        if not hasattr(stats_queue, queue.name):
+                            setattr(type(stats_queue), queue.name,
+                                    scales.Stat(queue.name))
+                        # Not claimed by any worker yet
+                        pipe.llen(queue.name)
+                    # Claimed by worker but not acked/processed yet
+                    pipe.hvals('unacked')
 
-                result = pipe.execute()
+                    result = pipe.execute()
 
                 unacked = result.pop()
                 for task in unacked:
