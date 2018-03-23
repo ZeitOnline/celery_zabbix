@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='celery_zabbix',
-    version='1.0.3.dev0',
+    version='1.0.3',
     author='Zeit Online',
     author_email='zon-backend@zeit.de',
     url='https://github.com/zeitonline/celery_zabbix',
