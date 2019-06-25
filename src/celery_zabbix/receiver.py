@@ -127,7 +127,7 @@ class Command(Command):
 
     def _send_to_zabbix(self, metrics):
         if not (self.zabbix_server and self.zabbix_nodename):
-            log.debug('zabbix server or nodename not defined, skipping'
+            log.error('zabbix server or nodename not defined, skipping'
                       ' sending metrics')
             return
         # Work around bug in zbxsend, they keep the fraction which zabbix
@@ -136,7 +136,21 @@ class Command(Command):
         metrics = [zbxsend.Metric(self.zabbix_nodename, key, value, now)
                    for key, value in metrics.items()]
         log.debug(metrics)
-        zbxsend.send_to_zabbix(metrics, self.zabbix_server)
+
+        # Try each server in the list if there is more than one.
+        sent = False
+        for server in self.zabbix_server:
+            log.debug('Trying to send metrics to: %s', server)
+            if zbxsend.send_to_zabbix(metrics, server):
+                log.debug('Sent metrics to: %s', server)
+                sent = True
+                break
+            else:
+                log.debug('Failed to send metrics to zabbix server: %s',
+                          server)
+        if not sent:
+            log.error('Failed to send metrics to zabbix servers: %s',
+                      self.zabbix_server)
 
     def check_queue_lengths(self):
         while not self.should_stop:
@@ -225,19 +239,22 @@ class Command(Command):
             text = unicode('[general]\n' + text, "utf-8")
             config = ConfigParser()
             config.readfp(StringIO(text))
-            if not self.zabbix_server:
+            if not self.zabbix_server and config.has_option('general',
+                                                            'ServerActive'):
+                # First try to get ServerActive if defined
+                self.zabbix_server = config.get('general', 'ServerActive')
+            if not self.zabbix_server and config.has_option('general',
+                                                            'Server'):
+                # Fall back to Server
                 self.zabbix_server = config.get('general', 'Server')
-                if ',' in self.zabbix_server:
-                    # The server option in the agent config file can be
-                    # a comma separated list, which won't work here.
-                    log.info('Comma seperated list of server '
-                             'names found, using first name from: %s',
-                             self.zabbix_server)
-                    self.zabbix_server = self.zabbix_server.split(',')[0]
-            if not self.zabbix_nodename:
+            if not self.zabbix_nodename and config.has_option('general',
+                                                              'Hostname'):
                 self.zabbix_nodename = config.get('general', 'Hostname')
 
-        log.debug('Using zabbix server name/ip: %s', self.zabbix_server)
+        # The server option in the agent config file can be
+        # a comma separated list, turn it into an array to be used later.
+        self.zabbix_server = self.zabbix_server.split(',')
+        log.debug('Using zabbix server name/ip list: %s', self.zabbix_server)
         log.debug('Using zabbix nodename: %s', self.zabbix_nodename)
 
     def add_arguments(self, parser):
