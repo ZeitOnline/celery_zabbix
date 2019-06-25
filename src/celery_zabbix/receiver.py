@@ -1,8 +1,8 @@
 from ConfigParser import ConfigParser
-from cStringIO import StringIO
+from io import StringIO
 from functools import wraps
 from greplin import scales
-import celery.bin.base
+from celery.bin.base import Command
 import collections
 import json
 import logging
@@ -88,7 +88,7 @@ class Receiver(object):
             recv.capture(*args, **kw)
 
 
-class Command(celery.bin.base.Command):
+class Command(Command):
 
     should_stop = False
 
@@ -127,6 +127,8 @@ class Command(celery.bin.base.Command):
 
     def _send_to_zabbix(self, metrics):
         if not (self.zabbix_server and self.zabbix_nodename):
+            log.debug('zabbix server or nodename not defined, skipping'
+                      ' sending metrics')
             return
         # Work around bug in zbxsend, they keep the fraction which zabbix
         # then rejects.
@@ -213,16 +215,30 @@ class Command(celery.bin.base.Command):
 
     def _configure_zabbix(self, options):
         agent_config = options.get('zabbix_agent_config')
-        if agent_config:
+        self.zabbix_server = options.get('zabbix_server')
+        self.zabbix_nodename = options.get('zabbix_nodename')
+
+        if agent_config and (not self.zabbix_server or
+                             not self.zabbix_nodename):
+            log.debug('Using zabbix agent config: %s', agent_config)
             text = open(agent_config).read()
-            text = '[general]\n' + text
+            text = unicode('[general]\n' + text, "utf-8")
             config = ConfigParser()
             config.readfp(StringIO(text))
-            self.zabbix_server = config.get('general', 'Server')
-            self.zabbix_nodename = config.get('general', 'Hostname')
-        else:
-            self.zabbix_server = options.pop('zabbix_server', None)
-            self.zabbix_nodename = options.pop('zabbix_nodename', None)
+            if not self.zabbix_server:
+                self.zabbix_server = config.get('general', 'Server')
+                if ',' in self.zabbix_server:
+                    # The server option in the agent config file can be
+                    # a comma separated list, which won't work here.
+                    log.info('Comma seperated list of server '
+                             'names found, using first name from: %s',
+                             self.zabbix_server)
+                    self.zabbix_server = self.zabbix_server.split(',')[0]
+            if not self.zabbix_nodename:
+                self.zabbix_nodename = config.get('general', 'Hostname')
+
+        log.debug('Using zabbix server name/ip: %s', self.zabbix_server)
+        log.debug('Using zabbix nodename: %s', self.zabbix_nodename)
 
     def add_arguments(self, parser):
         parser.add_argument(

@@ -1,4 +1,6 @@
 .cache
 .tox/
+build/
+dist/
 *.pyc
 *.egg-info
