@@ -13,7 +13,7 @@ Usage
 =====
 
 * Run ``bin/celery zabbix --zabbix-nodename myhost.example.com --zabbix-server zabbix.example.com``.
-  (Alternatively you can pass ``--zabix-agent-config=/etc/zabbix/zabbix_agentd.conf``, then the values for server+nodename will be read from there.)
+  (Alternatively you can pass ``--zabbix-agent-config=/etc/zabbix/zabbix_agentd.conf``, then the values for server+nodename will be read from there.)
 * Import the corresponding `Zabbix Template`_ to set up the matching items.
 
 .. _`Zabbix Template`: https://github.com/ZeitOnline/celery_zabbix/blob/master/zbx_template_celery.xml
