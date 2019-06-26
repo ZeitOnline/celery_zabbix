@@ -213,18 +213,21 @@ class Command(celery.bin.base.Command):
         return options, args
 
     def _configure_zabbix(self, options):
+        self.zabbix_server = options.pop('zabbix_server', None)
+        self.zabbix_nodename = options.pop('zabbix_nodename', None)
+
         agent_config = options.get('zabbix_agent_config')
-        if agent_config:
+        if (agent_config and
+                (not self.zabbix_server or not self.zabbix_nodename)):
             log.debug('Using zabbix agent config %s', agent_config)
             text = open(agent_config).read()
             text = '[general]\n' + text
             config = ConfigParser()
             config.readfp(StringIO(text))
-            self.zabbix_server = config.get('general', 'Server')
-            self.zabbix_nodename = config.get('general', 'Hostname')
-        else:
-            self.zabbix_server = options.pop('zabbix_server', None)
-            self.zabbix_nodename = options.pop('zabbix_nodename', None)
+            if not self.zabbix_server:
+                self.zabbix_server = config.get('general', 'Server')
+            if not self.zabbix_nodename:
+                self.zabbix_nodename = config.get('general', 'Hostname')
         log.debug('Using zabbix server %s', self.zabbix_server)
         log.debug('Using zabbix nodename %s', self.zabbix_nodename)
 

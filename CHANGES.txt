@@ -4,7 +4,8 @@ celery_zabbix changes
 1.0.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Allow using agent config file and still overriding values on the commandline
+  (Patch by Peter Radcliffe)
 
 
 1.0.3 (2018-03-23)
