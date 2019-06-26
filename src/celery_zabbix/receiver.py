@@ -127,6 +127,7 @@ class Command(celery.bin.base.Command):
 
     def _send_to_zabbix(self, metrics):
         if not (self.zabbix_server and self.zabbix_nodename):
+            log.warning('No zabbix connection configured, not sending metrics')
             return
         # Work around bug in zbxsend, they keep the fraction which zabbix
         # then rejects.
@@ -214,6 +215,7 @@ class Command(celery.bin.base.Command):
     def _configure_zabbix(self, options):
         agent_config = options.get('zabbix_agent_config')
         if agent_config:
+            log.debug('Using zabbix agent config %s', agent_config)
             text = open(agent_config).read()
             text = '[general]\n' + text
             config = ConfigParser()
@@ -223,6 +225,8 @@ class Command(celery.bin.base.Command):
         else:
             self.zabbix_server = options.pop('zabbix_server', None)
             self.zabbix_nodename = options.pop('zabbix_nodename', None)
+        log.debug('Using zabbix server %s', self.zabbix_server)
+        log.debug('Using zabbix nodename %s', self.zabbix_nodename)
 
     def add_arguments(self, parser):
         parser.add_argument(
