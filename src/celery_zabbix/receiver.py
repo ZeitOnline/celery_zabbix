@@ -226,6 +226,8 @@ class Command(celery.bin.base.Command):
             config.readfp(StringIO(text))
             if not self.zabbix_server:
                 self.zabbix_server = config.get('general', 'Server')
+                if ',' in self.zabbix_server:
+                    self.zabbix_server = self.zabbix_server.split(',')[0]
             if not self.zabbix_nodename:
                 self.zabbix_nodename = config.get('general', 'Hostname')
         log.debug('Using zabbix server %s', self.zabbix_server)
