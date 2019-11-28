@@ -4,7 +4,9 @@ celery_zabbix changes
 1.0.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Make Python-3 compatible.
+  You'll need a version of `zbxsend` that is py3 compatible as well,
+  e.g. from https://github.com/pistolero/zbxsend/pull/9
 
 
 1.0.4 (2019-06-26)

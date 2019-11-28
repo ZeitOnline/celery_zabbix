@@ -1,15 +1,23 @@
-from ConfigParser import ConfigParser
-from cStringIO import StringIO
 from functools import wraps
 from greplin import scales
 import celery.bin.base
 import collections
 import json
 import logging
-import thread
+import sys
 import threading
 import time
 import zbxsend
+
+
+if sys.version_info < (3,):
+    from ConfigParser import ConfigParser
+    from cStringIO import StringIO
+    import thread
+else:
+    from configparser import ConfigParser
+    from io import StringIO
+    import _thread as thread
 
 
 log = logging.getLogger(__name__)
