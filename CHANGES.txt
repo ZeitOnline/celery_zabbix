@@ -1,7 +1,7 @@
 celery_zabbix changes
 =====================
 
-1.0.5 (unreleased)
+1.1.0 (2019-11-28)
 ------------------
 
 - Make Python-3 compatible.
